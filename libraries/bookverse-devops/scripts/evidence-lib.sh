@@ -84,7 +84,8 @@ evd_create() {
       return 1
     fi
   else
-    # 🎯 FIX: Use ONLY subject-repo-path to bypass the CLI's internal prefix logic
+    # 🎯 THE FIX: Use ONLY --subject-repo-path. 
+    # Removed --release-bundle and --release-bundle-version to resolve the "multiple subjects" error.
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
@@ -94,7 +95,7 @@ evd_create() {
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
-      echo "❌ Failed to attach evidence to release bundle ${APPLICATION_KEY}:${APP_VERSION}" >&2
+      echo "❌ Failed to attach evidence to release bundle path in release-bundles-v2" >&2
       echo "🔍 Check EVIDENCE_PRIVATE_KEY and EVIDENCE_KEY_ALIAS configuration" >&2
       return 1
     fi
@@ -124,7 +125,7 @@ generate_random_values() {
   
   export URLS_SCANNED=$((50 + RANDOM % 100))
   export SCAN_DURATION=$((300 + RANDOM % 600))
-  export FILES_SCANNED=$((25 + RANDOM % 50))
+  export FILES_SCANNED=$((25 + PAST_RANDOM % 50))
   export POLICIES_EVALUATED=$((15 + RANDOM % 20))
   export COMPLIANCE_SCORE=$((85 + RANDOM % 15))
   
