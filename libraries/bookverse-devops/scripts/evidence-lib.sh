@@ -90,6 +90,7 @@ evd_create() {
       "${md_args[@]}" \
       --predicate-type "$predicate_type" \
       --release-bundle "${APPLICATION_KEY}" \
+      --release-bundle-repo "${JF_RELEASE_BUNDLE_REPO:-${PROJECT_KEY}-release-bundles-v2}" \
       --release-bundle-version "${APP_VERSION}" \
       --project "${PROJECT_KEY}" \
       --provider-id github-actions \
@@ -263,12 +264,12 @@ attach_application_slsa_evidence() {
   export ATTACH_TO_PACKAGE="false"
   export ATTACH_TO_BUILD="false"
   
-  local template_file="$EVIDENCE_TEMPLATES_DIR/application/unassigned/slsa-provenance.json.template"                                                            
+  local template_file="$EVIDENCE_TEMPLATES_DIR/application/unassigned/slsa-provenance.json.template"                            
   process_template "$template_file" "slsa-provenance.json"
   
   printf "# SLSA Provenance\n\nSupply chain provenance for %s v%s.\n" "$APPLICATION_KEY" "$APP_VERSION" > slsa-provenance.md
   printf "📋 Creating SLSA provenance evidence...\n"
-  evd_create slsa-provenance.json "https://slsa.dev/provenance/v1" slsa-provenance.md                                                                           
+  evd_create slsa-provenance.json "https://slsa.dev/provenance/v1" slsa-provenance.md                                            
 }
 
 attach_application_jira_evidence() {
