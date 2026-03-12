@@ -84,13 +84,11 @@ evd_create() {
       return 1
     fi
   else
-    # 🎯 TARGET CHANGE: Point directly to the actual ledger path to bypass prefix logic
+    # 🎯 FIX: Hardcode the ledger name and path to bypass the CLI's internal prefix logic
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
       --predicate-type "$predicate_type" \
-      --release-bundle "${APPLICATION_KEY}" \
-      --release-bundle-version "${APP_VERSION}" \
       --subject-repo-path "release-bundles-v2/${APPLICATION_KEY}/${APP_VERSION}/release-bundle.json" \
       --project "${PROJECT_KEY}" \
       --provider-id github-actions \
