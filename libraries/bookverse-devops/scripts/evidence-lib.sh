@@ -84,7 +84,7 @@ evd_create() {
       return 1
     fi
   else
-    # 🎯 FIX: Hardcode the ledger name and path to bypass the CLI's internal prefix logic
+    # 🎯 FIX: Use ONLY subject-repo-path to bypass the CLI's internal prefix logic
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
