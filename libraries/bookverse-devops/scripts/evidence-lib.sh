@@ -39,35 +39,50 @@ evd_create() {
   if [[ "${ATTACH_TO_PACKAGE:-}" == "true" ]]; then
     # Standard package logic
     local package_repo_name="${PROJECT_KEY}-${SERVICE_NAME}-internal-docker-nonprod-local"
-    jf evd create-evidence --predicate "$predicate_file" "${md_args[@]}" --predicate-type "$predicate_type" --package-name "${PACKAGE_NAME}" --package-version "${PACKAGE_VERSION}" --package-repo-name "$package_repo_name" --project "${PROJECT_KEY}" --provider-id github-actions --key "${EVIDENCE_PRIVATE_KEY:-}" --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"
-  elif [[ "${ATTACH_TO_BUILD:-}" == "true" ]]; then
-    # Standard build logic
-    jf evd create-evidence --predicate "$predicate_file" "${md_args[@]}" --predicate-type "$predicate_type" --build-name "${BUILD_NAME}" --build-number "${BUILD_NUMBER}" --project "${PROJECT_KEY}" --provider-id github-actions --key "${EVIDENCE_PRIVATE_KEY:-}" --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"
-  else
-    # 🚀 THE FAIL-SAFE FIX: Use SHA256 instead of Path
-    # We fetch the SHA of the bundle via API. This bypasses all repository/path naming issues.
-    echo "🔍 Fetching Application Version SHA256 for $APPLICATION_KEY:$APP_VERSION..."
-    local VERSION_SHA
-    VERSION_SHA=$(curl -s -L -H "Authorization: Bearer ${JF_OIDC_TOKEN:-}" \
-      "${JF_URL:-https://tsmemea.jfrog.io}/apptrust/api/v1/applications/${APPLICATION_KEY}/versions/${APP_VERSION}/content" \
-      | jq -r '.application_version_sha256 // empty')
-
-    if [[ -z "$VERSION_SHA" ]]; then
-      echo "❌ Failed to retrieve SHA256 for the application version. Is it created yet?" >&2
-      return 1
-    fi
-    echo "✅ Found SHA256: $VERSION_SHA"
-
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
       --predicate-type "$predicate_type" \
-      --subject-sha256 "$VERSION_SHA" \
+      --package-name "${PACKAGE_NAME}" \
+      --package-version "${PACKAGE_VERSION}" \
+      --package-repo-name "$package_repo_name" \
       --project "${PROJECT_KEY}" \
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
-      echo "❌ Failed to attach evidence to release bundle SHA $VERSION_SHA" >&2
+      echo "❌ Failed to attach evidence to package ${PACKAGE_NAME}:${PACKAGE_VERSION}" >&2
+      return 1
+    fi
+  elif [[ "${ATTACH_TO_BUILD:-}" == "true" ]]; then
+    # Standard build logic
+    if ! jf evd create-evidence \
+      --predicate "$predicate_file" \
+      "${md_args[@]}" \
+      --predicate-type "$predicate_type" \
+      --build-name "${BUILD_NAME}" \
+      --build-number "${BUILD_NUMBER}" \
+      --project "${PROJECT_KEY}" \
+      --provider-id github-actions \
+      --key "${EVIDENCE_PRIVATE_KEY:-}" \
+      --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
+      echo "❌ Failed to attach evidence to build ${BUILD_NAME}:${BUILD_NUMBER}" >&2
+      return 1
+    fi
+  else
+    # 🚀 THE CORRECT FIX (AppTrust Native Flags)
+    # Based on your CLI 2.96.0 help output, these are the correct flags to use.
+    # This targets the Application Version directly in the project.
+    if ! jf evd create-evidence \
+      --predicate "$predicate_file" \
+      "${md_args[@]}" \
+      --predicate-type "$predicate_type" \
+      --application-key "${APPLICATION_KEY}" \
+      --application-version "${APP_VERSION}" \
+      --project "${PROJECT_KEY}" \
+      --provider-id github-actions \
+      --key "${EVIDENCE_PRIVATE_KEY:-}" \
+      --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
+      echo "❌ Failed to attach evidence to application version ${APPLICATION_KEY}:${APP_VERSION}" >&2
       return 1
     fi
   fi
@@ -96,7 +111,7 @@ generate_random_values() {
   
   export URLS_SCANNED=$((50 + RANDOM % 100))
   export SCAN_DURATION=$((300 + RANDOM % 600))
-  export FILES_SCANNED=$((25 + RANDOM % 50)) # Typo Fixed (No more PAST_RANDOM)
+  export FILES_SCANNED=$((25 + RANDOM % 50)) # Fixed typo here
   export POLICIES_EVALUATED=$((15 + RANDOM % 20))
   export COMPLIANCE_SCORE=$((85 + RANDOM % 15))
   
@@ -295,7 +310,7 @@ attach_application_api_evidence() {
   export ATTACH_TO_BUILD="false"
   
   local template_file="$EVIDENCE_TEMPLATES_DIR/application/qa/api-tests.json.template"
-  process_template "$template_file" "api-tests.json"
+  process_template "$template_version" "api-tests.json"
   
   printf "# API Tests\n\nAPI integration tests for %s v%s in QA.\n" "$APPLICATION_KEY" "$APP_VERSION" > api-tests.md
   printf "📋 Creating API test evidence...\n"
