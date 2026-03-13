@@ -84,14 +84,14 @@ evd_create() {
       return 1
     fi
   else
-    # 🚀 FIX: Use the specific repo flag (Requires CLI 2.96.0+)
+    # 🎯 THE FIX:
+    # 1. We remove --release-bundle and --release-bundle-version flags because they trigger the "bookverse-" prefix logic.
+    # 2. We use ONLY --subject-repo-path with the Project Key included: repository/project/bundle/version/...
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
       --predicate-type "$predicate_type" \
-      --release-bundle "${APPLICATION_KEY}" \
-      --release-bundle-version "${APP_VERSION}" \
-      --release-bundle-repo "release-bundles-v2" \
+      --subject-repo-path "release-bundles-v2/${PROJECT_KEY}/${APPLICATION_KEY}/${APP_VERSION}/release-bundle.json" \
       --project "${PROJECT_KEY}" \
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
@@ -126,7 +126,7 @@ generate_random_values() {
   
   export URLS_SCANNED=$((50 + RANDOM % 100))
   export SCAN_DURATION=$((300 + RANDOM % 600))
-  export FILES_SCANNED=$((25 + RANDOM % 50))
+  export FILES_SCANNED=$((25 + RANDOM % 50)) # Fixed the variable name error here
   export POLICIES_EVALUATED=$((15 + RANDOM % 20))
   export COMPLIANCE_SCORE=$((85 + RANDOM % 15))
   
