@@ -84,8 +84,8 @@ evd_create() {
       return 1
     fi
   else
-    # 🎯 TARGET FIX: Use the specific Project-Scoped path in the Global Ledger
-    # This is the path logic required for global repositories mapped to projects.
+    # 🎯 FINAL TARGET FIX: Use the project-prefixed path required for your Global Ledger.
+    # The CLI needs to see: [Ledger Repo Name]/[Project Key]/[Bundle Name]/[Version]/release-bundle.json
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
@@ -95,8 +95,7 @@ evd_create() {
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
-      echo "❌ Failed to attach evidence to release bundle ${APPLICATION_KEY}:${APP_VERSION}" >&2
-      echo "🔍 Check EVIDENCE_PRIVATE_KEY and EVIDENCE_KEY_ALIAS configuration" >&2
+      echo "❌ Failed to attach evidence to release bundle path in release-bundles-v2" >&2
       return 1
     fi
   fi
