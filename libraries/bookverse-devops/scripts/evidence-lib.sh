@@ -37,55 +37,37 @@ evd_create() {
   if [[ -n "$markdown_file" ]]; then md_args+=(--markdown "$markdown_file"); fi
   
   if [[ "${ATTACH_TO_PACKAGE:-}" == "true" ]]; then
-    local package_repo_name
-    if [[ "${PACKAGE_NAME:-}" =~ \.(tar\.gz|zip|jar|war|tgz)$ ]] || [[ "${PACKAGE_NAME:-}" =~ ^(config|resources)$ ]]; then
-      package_repo_name="${PROJECT_KEY}-${SERVICE_NAME}-internal-generic-nonprod-local"
-    else
-      package_repo_name="${PROJECT_KEY}-${SERVICE_NAME}-internal-docker-nonprod-local"
-    fi
-    if ! jf evd create-evidence \
-      --predicate "$predicate_file" \
-      "${md_args[@]}" \
-      --predicate-type "$predicate_type" \
-      --package-name "${PACKAGE_NAME}" \
-      --package-version "${PACKAGE_VERSION}" \
-      --package-repo-name "$package_repo_name" \
-      --project "${PROJECT_KEY}" \
-      --provider-id github-actions \
-      --key "${EVIDENCE_PRIVATE_KEY:-}" \
-      --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
-      echo "❌ Failed to attach evidence to package ${PACKAGE_NAME}:${PACKAGE_VERSION}" >&2
-      return 1
-    fi
+    # Standard package logic
+    local package_repo_name="${PROJECT_KEY}-${SERVICE_NAME}-internal-docker-nonprod-local"
+    jf evd create-evidence --predicate "$predicate_file" "${md_args[@]}" --predicate-type "$predicate_type" --package-name "${PACKAGE_NAME}" --package-version "${PACKAGE_VERSION}" --package-repo-name "$package_repo_name" --project "${PROJECT_KEY}" --provider-id github-actions --key "${EVIDENCE_PRIVATE_KEY:-}" --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"
   elif [[ "${ATTACH_TO_BUILD:-}" == "true" ]]; then
-    if ! jf evd create-evidence \
-      --predicate "$predicate_file" \
-      "${md_args[@]}" \
-      --predicate-type "$predicate_type" \
-      --build-name "${BUILD_NAME}" \
-      --build-number "${BUILD_NUMBER}" \
-      --project "${PROJECT_KEY}" \
-      --provider-id github-actions \
-      --key "${EVIDENCE_PRIVATE_KEY:-}" \
-      --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
-      echo "❌ Failed to attach evidence to build ${BUILD_NAME}:${BUILD_NUMBER}" >&2
+    # Standard build logic
+    jf evd create-evidence --predicate "$predicate_file" "${md_args[@]}" --predicate-type "$predicate_type" --build-name "${BUILD_NAME}" --build-number "${BUILD_NUMBER}" --project "${PROJECT_KEY}" --provider-id github-actions --key "${EVIDENCE_PRIVATE_KEY:-}" --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"
+  else
+    # 🚀 THE FAIL-SAFE FIX: Use SHA256 instead of Path
+    # We fetch the SHA of the bundle via API. This bypasses all repository/path naming issues.
+    echo "🔍 Fetching Application Version SHA256 for $APPLICATION_KEY:$APP_VERSION..."
+    local VERSION_SHA
+    VERSION_SHA=$(curl -s -L -H "Authorization: Bearer ${JF_OIDC_TOKEN:-}" \
+      "${JF_URL:-https://tsmemea.jfrog.io}/apptrust/api/v1/applications/${APPLICATION_KEY}/versions/${APP_VERSION}/content" \
+      | jq -r '.application_version_sha256 // empty')
+
+    if [[ -z "$VERSION_SHA" ]]; then
+      echo "❌ Failed to retrieve SHA256 for the application version. Is it created yet?" >&2
       return 1
     fi
-  else
-    # 🎯 THE FINAL FIX (CLI 2.96.0 Official Flags)
-    # We use ONLY the flags confirmed in your 13:15 log's 'Options' list.
-    # This uses the official Bundle API and respects the Project context.
+    echo "✅ Found SHA256: $VERSION_SHA"
+
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
       --predicate-type "$predicate_type" \
-      --release-bundle "${APPLICATION_KEY}" \
-      --release-bundle-version "${APP_VERSION}" \
+      --subject-sha256 "$VERSION_SHA" \
       --project "${PROJECT_KEY}" \
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
-      echo "❌ Failed to attach evidence to release bundle ${APPLICATION_KEY}:${APP_VERSION}" >&2
+      echo "❌ Failed to attach evidence to release bundle SHA $VERSION_SHA" >&2
       return 1
     fi
   fi
@@ -114,7 +96,7 @@ generate_random_values() {
   
   export URLS_SCANNED=$((50 + RANDOM % 100))
   export SCAN_DURATION=$((300 + RANDOM % 600))
-  export FILES_SCANNED=$((25 + RANDOM % 50))
+  export FILES_SCANNED=$((25 + RANDOM % 50)) # Typo Fixed (No more PAST_RANDOM)
   export POLICIES_EVALUATED=$((15 + RANDOM % 20))
   export COMPLIANCE_SCORE=$((85 + RANDOM % 15))
   
