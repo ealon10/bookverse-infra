@@ -84,12 +84,14 @@ evd_create() {
       return 1
     fi
   else
-    # 🎯 FIX: Use the project-prefixed path required for Global Ledgers
+    # 🚀 FIX: Use the specific repo flag (Requires CLI 2.96.0+)
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
       --predicate-type "$predicate_type" \
-      --subject-repo-path "release-bundles-v2/${PROJECT_KEY}/${APPLICATION_KEY}/${APP_VERSION}/release-bundle.json" \
+      --release-bundle "${APPLICATION_KEY}" \
+      --release-bundle-version "${APP_VERSION}" \
+      --release-bundle-repo "release-bundles-v2" \
       --project "${PROJECT_KEY}" \
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
