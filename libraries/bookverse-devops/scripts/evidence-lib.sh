@@ -84,9 +84,8 @@ evd_create() {
       return 1
     fi
   else
-    # 🎯 THE FIX:
-    # 1. We remove --release-bundle and --release-bundle-version flags because they trigger the "bookverse-" prefix logic.
-    # 2. We use ONLY --subject-repo-path with the Project Key included: repository/project/bundle/version/...
+    # 🎯 TARGET FIX: Use the specific Project-Scoped path in the Global Ledger
+    # This is the path logic required for global repositories mapped to projects.
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
@@ -126,7 +125,7 @@ generate_random_values() {
   
   export URLS_SCANNED=$((50 + RANDOM % 100))
   export SCAN_DURATION=$((300 + RANDOM % 600))
-  export FILES_SCANNED=$((25 + RANDOM % 50)) # Fixed the variable name error here
+  export FILES_SCANNED=$((25 + RANDOM % 50))
   export POLICIES_EVALUATED=$((15 + RANDOM % 20))
   export COMPLIANCE_SCORE=$((85 + RANDOM % 15))
   
