@@ -84,18 +84,20 @@ evd_create() {
       return 1
     fi
   else
-    # 🎯 FINAL TARGET FIX: Use the project-prefixed path required for your Global Ledger.
-    # The CLI needs to see: [Ledger Repo Name]/[Project Key]/[Bundle Name]/[Version]/release-bundle.json
+    # 🚀 THE OFFICIAL FIX: Uses official bundle flags instead of manual path guessing.
+    # This works because you have CLI 2.96.0 enabled in ci.yml.
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
       --predicate-type "$predicate_type" \
-      --subject-repo-path "release-bundles-v2/${PROJECT_KEY}/${APPLICATION_KEY}/${APP_VERSION}/release-bundle.json" \
+      --release-bundle "${APPLICATION_KEY}" \
+      --release-bundle-version "${APP_VERSION}" \
+      --release-bundle-repo "release-bundles-v2" \
       --project "${PROJECT_KEY}" \
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
-      echo "❌ Failed to attach evidence to release bundle path in release-bundles-v2" >&2
+      echo "❌ Failed to attach evidence to release bundle ${APPLICATION_KEY}:${APP_VERSION}" >&2
       return 1
     fi
   fi
