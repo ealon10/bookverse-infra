@@ -37,11 +37,6 @@ evd_create() {
   if [[ -n "$markdown_file" ]]; then md_args+=(--markdown "$markdown_file"); fi
   
   if [[ "${ATTACH_TO_PACKAGE:-}" == "true" ]]; then
-    local url_args=()
-    if [[ -n "${JFROG_URL:-${JF_URL:-}}" ]]; then
-      url_args+=(--url "${JFROG_URL:-${JF_URL:-}}")
-    fi
-    
     local package_repo_name
     if [[ "${PACKAGE_NAME:-}" =~ \.(tar\.gz|zip|jar|war|tgz)$ ]] || [[ "${PACKAGE_NAME:-}" =~ ^(config|resources)$ ]]; then
       package_repo_name="${PROJECT_KEY}-${SERVICE_NAME}-internal-generic-nonprod-local"
@@ -59,16 +54,10 @@ evd_create() {
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
-      echo "❌ Failed to attach evidence to package ${PACKAGE_NAME}:${PACKAGE_VERSION} in $package_repo_name" >&2
-      echo "🔍 Check EVIDENCE_PRIVATE_KEY and EVIDENCE_KEY_ALIAS configuration" >&2
+      echo "❌ Failed to attach evidence to package ${PACKAGE_NAME}:${PACKAGE_VERSION}" >&2
       return 1
     fi
   elif [[ "${ATTACH_TO_BUILD:-}" == "true" ]]; then
-    local url_args=()
-    if [[ -n "${JFROG_URL:-${JF_URL:-}}" ]]; then
-      url_args+=(--url "${JFROG_URL:-${JF_URL:-}}")
-    fi
-    
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
@@ -80,19 +69,18 @@ evd_create() {
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
       echo "❌ Failed to attach evidence to build ${BUILD_NAME}:${BUILD_NUMBER}" >&2
-      echo "🔍 Check EVIDENCE_PRIVATE_KEY and EVIDENCE_KEY_ALIAS configuration" >&2
       return 1
     fi
   else
-    # 🚀 THE OFFICIAL FIX: Uses official bundle flags instead of manual path guessing.
-    # This works because you have CLI 2.96.0 enabled in ci.yml.
+    # 🎯 THE FINAL FIX (CLI 2.96.0 Official Flags)
+    # We use ONLY the flags confirmed in your 13:15 log's 'Options' list.
+    # This uses the official Bundle API and respects the Project context.
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
       --predicate-type "$predicate_type" \
       --release-bundle "${APPLICATION_KEY}" \
       --release-bundle-version "${APP_VERSION}" \
-      --release-bundle-repo "release-bundles-v2" \
       --project "${PROJECT_KEY}" \
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
