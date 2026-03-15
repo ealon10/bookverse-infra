@@ -37,8 +37,17 @@ evd_create() {
   if [[ -n "$markdown_file" ]]; then md_args+=(--markdown "$markdown_file"); fi
   
   if [[ "${ATTACH_TO_PACKAGE:-}" == "true" ]]; then
-    # Standard package logic
-    local package_repo_name="${PROJECT_KEY}-${SERVICE_NAME}-internal-docker-nonprod-local"
+    local url_args=()
+    if [[ -n "${JFROG_URL:-${JF_URL:-}}" ]]; then
+      url_args+=(--url "${JFROG_URL:-${JF_URL:-}}")
+    fi
+    
+    local package_repo_name
+    if [[ "${PACKAGE_NAME:-}" =~ \.(tar\.gz|zip|jar|war|tgz)$ ]] || [[ "${PACKAGE_NAME:-}" =~ ^(config|resources)$ ]]; then
+      package_repo_name="${PROJECT_KEY}-${SERVICE_NAME}-internal-generic-nonprod-local"
+    else
+      package_repo_name="${PROJECT_KEY}-${SERVICE_NAME}-internal-docker-nonprod-local"
+    fi
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
@@ -50,11 +59,16 @@ evd_create() {
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
-      echo "❌ Failed to attach evidence to package ${PACKAGE_NAME}:${PACKAGE_VERSION}" >&2
+      echo "❌ Failed to attach evidence to package ${PACKAGE_NAME}:${PACKAGE_VERSION} in $package_repo_name" >&2
+      echo "🔍 Check EVIDENCE_PRIVATE_KEY and EVIDENCE_KEY_ALIAS configuration" >&2
       return 1
     fi
   elif [[ "${ATTACH_TO_BUILD:-}" == "true" ]]; then
-    # Standard build logic
+    local url_args=()
+    if [[ -n "${JFROG_URL:-${JF_URL:-}}" ]]; then
+      url_args+=(--url "${JFROG_URL:-${JF_URL:-}}")
+    fi
+    
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
@@ -66,23 +80,22 @@ evd_create() {
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
       echo "❌ Failed to attach evidence to build ${BUILD_NAME}:${BUILD_NUMBER}" >&2
+      echo "🔍 Check EVIDENCE_PRIVATE_KEY and EVIDENCE_KEY_ALIAS configuration" >&2
       return 1
     fi
   else
-    # 🚀 THE CORRECT FIX (AppTrust Native Flags)
-    # Based on your CLI 2.96.0 help output, these are the correct flags to use.
-    # This targets the Application Version directly in the project.
+
     if ! jf evd create-evidence \
       --predicate "$predicate_file" \
       "${md_args[@]}" \
       --predicate-type "$predicate_type" \
       --application-key "${APPLICATION_KEY}" \
       --application-version "${APP_VERSION}" \
-      --project "${PROJECT_KEY}" \
       --provider-id github-actions \
       --key "${EVIDENCE_PRIVATE_KEY:-}" \
       --key-alias "${EVIDENCE_KEY_ALIAS:-${EVIDENCE_KEY_ALIAS_VAR:-}}"; then
       echo "❌ Failed to attach evidence to application version ${APPLICATION_KEY}:${APP_VERSION}" >&2
+      echo "🔍 Check EVIDENCE_PRIVATE_KEY and EVIDENCE_KEY_ALIAS configuration" >&2
       return 1
     fi
   fi
@@ -111,7 +124,7 @@ generate_random_values() {
   
   export URLS_SCANNED=$((50 + RANDOM % 100))
   export SCAN_DURATION=$((300 + RANDOM % 600))
-  export FILES_SCANNED=$((25 + RANDOM % 50)) # Fixed typo here
+  export FILES_SCANNED=$((25 + RANDOM % 50))
   export POLICIES_EVALUATED=$((15 + RANDOM % 20))
   export COMPLIANCE_SCORE=$((85 + RANDOM % 15))
   
@@ -249,12 +262,12 @@ attach_application_slsa_evidence() {
   export ATTACH_TO_PACKAGE="false"
   export ATTACH_TO_BUILD="false"
   
-  local template_file="$EVIDENCE_TEMPLATES_DIR/application/unassigned/slsa-provenance.json.template"                            
+  local template_file="$EVIDENCE_TEMPLATES_DIR/application/unassigned/slsa-provenance.json.template"                                                            
   process_template "$template_file" "slsa-provenance.json"
   
   printf "# SLSA Provenance\n\nSupply chain provenance for %s v%s.\n" "$APPLICATION_KEY" "$APP_VERSION" > slsa-provenance.md
   printf "📋 Creating SLSA provenance evidence...\n"
-  evd_create slsa-provenance.json "https://slsa.dev/provenance/v1" slsa-provenance.md                                            
+  evd_create slsa-provenance.json "https://slsa.dev/provenance/v1" slsa-provenance.md                                                                           
 }
 
 attach_application_jira_evidence() {
@@ -310,7 +323,7 @@ attach_application_api_evidence() {
   export ATTACH_TO_BUILD="false"
   
   local template_file="$EVIDENCE_TEMPLATES_DIR/application/qa/api-tests.json.template"
-  process_template "$template_version" "api-tests.json"
+  process_template "$template_file" "api-tests.json"
   
   printf "# API Tests\n\nAPI integration tests for %s v%s in QA.\n" "$APPLICATION_KEY" "$APP_VERSION" > api-tests.md
   printf "📋 Creating API test evidence...\n"
